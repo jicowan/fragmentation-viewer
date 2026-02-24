@@ -1,0 +1,44 @@
+.region-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.region-selector label {
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.region-selector select {
+  padding: 0.75rem;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: #1f2937;
+  color: #f3f4f6;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.region-selector select:hover:not(:disabled) {
+  border-color: #667eea;
+}
+
+.region-selector select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.region-selector select:disabled {
+  background-color: #374151;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.region-selector option {
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
