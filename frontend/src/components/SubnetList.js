@@ -55,7 +55,21 @@ function SubnetList({ subnets, selectedSubnet, onSelect, loading }) {
               {subnet.prefixDelegationIps > 0 && (
                 <span className="ip-type-badge prefix">Prefix: {subnet.prefixDelegationIps}</span>
               )}
+              {subnet.cidrReservationIps > 0 && (
+                <span className="ip-type-badge cidr-reservation">CIDR Resv: {subnet.cidrReservationIps}</span>
+              )}
             </div>
+            {subnet.cidrReservations && subnet.cidrReservations.length > 0 && (
+              <div className="subnet-reservations">
+                <span className="reservations-label">Reservations:</span>
+                {subnet.cidrReservations.map((resv, idx) => (
+                  <div key={idx} className="reservation-item">
+                    <span className="reservation-cidr">{resv.cidr}</span>
+                    <span className="reservation-type">({resv.type})</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="fragmentation-score">
               <span className="frag-label">Fragmentation:</span>
               <div className="frag-bar-container">

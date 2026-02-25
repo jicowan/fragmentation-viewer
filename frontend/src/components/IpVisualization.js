@@ -19,6 +19,14 @@ function IpVisualization({ ipData }) {
         return '#3b82f6'; // Default blue
       case 'reserved':
         return '#9ca3af'; // Gray - AWS reserved
+      case 'cidr_reservation':
+        // Differentiate by reservation type
+        if (ip.details?.type === 'explicit') {
+          return '#f59e0b'; // Amber - explicit reservation
+        } else if (ip.details?.type === 'prefix') {
+          return '#f97316'; // Orange - prefix reservation
+        }
+        return '#f59e0b'; // Default amber
       case 'free':
         return '#f3f4f6'; // Light gray - available
       default:
@@ -67,8 +75,12 @@ function IpVisualization({ ipData }) {
             <span>Prefix</span>
           </div>
           <div className="legend-item-compact">
+            <span className="color-dot" style={{ backgroundColor: '#f59e0b' }}></span>
+            <span>CIDR Resv</span>
+          </div>
+          <div className="legend-item-compact">
             <span className="color-dot" style={{ backgroundColor: '#9ca3af' }}></span>
-            <span>Reserved</span>
+            <span>AWS Resv</span>
           </div>
           <div className="legend-item-compact">
             <span className="color-dot" style={{ backgroundColor: '#f3f4f6' }}></span>
@@ -79,21 +91,26 @@ function IpVisualization({ ipData }) {
 
       <div className="ip-grid-container">
         <div className="ip-grid" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
-          {ipData.ips.map((ip, index) => (
-            <div
-              key={index}
-              className={`ip-block ${ip.status}`}
-              style={{ backgroundColor: getIpColor(ip) }}
-              onMouseEnter={(e) => handleMouseEnter(ip, e)}
-              onMouseLeave={handleMouseLeave}
-              title={ip.ip}
-            >
+          {ipData.ips.map((ip, index) => {
+            // Check if this IP is both used and in a CIDR reservation
+            const hasReservationOverlap = ip.status === 'used' && ip.details?.cidrReservation;
+
+            return (
+              <div
+                key={index}
+                className={`ip-block ${ip.status} ${hasReservationOverlap ? 'has-reservation' : ''}`}
+                style={{ backgroundColor: getIpColor(ip) }}
+                onMouseEnter={(e) => handleMouseEnter(ip, e)}
+                onMouseLeave={handleMouseLeave}
+                title={ip.ip}
+              >
               {/* Show label for every 4th IP or important IPs */}
               {(index % 4 === 0 || ip.status === 'used') && (
                 <span className="ip-label">{getIpLabel(ip)}</span>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -141,6 +158,25 @@ function IpVisualization({ ipData }) {
                     <span>{hoveredIp.details.status}</span>
                   </div>
                 )}
+                {hoveredIp.details.cidrReservation && (
+                  <>
+                    <div className="tooltip-divider"></div>
+                    <div className="tooltip-row">
+                      <span>CIDR Reservation:</span>
+                      <span className="mono">{hoveredIp.details.cidrReservation.cidr}</span>
+                    </div>
+                    <div className="tooltip-row">
+                      <span>Reservation Type:</span>
+                      <span>{hoveredIp.details.cidrReservation.type}</span>
+                    </div>
+                    {hoveredIp.details.cidrReservation.description && (
+                      <div className="tooltip-row">
+                        <span>Reservation Desc:</span>
+                        <span>{hoveredIp.details.cidrReservation.description}</span>
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
             {hoveredIp.status === 'reserved' && hoveredIp.details && (
@@ -148,6 +184,30 @@ function IpVisualization({ ipData }) {
                 <span>Reason:</span>
                 <span>{hoveredIp.details.reason}</span>
               </div>
+            )}
+            {hoveredIp.status === 'cidr_reservation' && hoveredIp.details && (
+              <>
+                <div className="tooltip-row">
+                  <span>Reservation Type:</span>
+                  <span>{hoveredIp.details.type}</span>
+                </div>
+                <div className="tooltip-row">
+                  <span>CIDR Block:</span>
+                  <span className="mono">{hoveredIp.details.cidr}</span>
+                </div>
+                {hoveredIp.details.description && (
+                  <div className="tooltip-row">
+                    <span>Description:</span>
+                    <span>{hoveredIp.details.description}</span>
+                  </div>
+                )}
+                {hoveredIp.details.reservationId && (
+                  <div className="tooltip-row">
+                    <span>ID:</span>
+                    <span className="mono">{hoveredIp.details.reservationId}</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

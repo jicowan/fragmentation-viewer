@@ -50,6 +50,42 @@ def get_reserved_ips(cidr_block):
     return reserved
 
 
+def get_subnet_cidr_reservations(ec2_client, subnet_id):
+    """
+    Get CIDR reservations for a subnet.
+    Returns a dict mapping IP addresses to reservation details.
+    """
+    try:
+        response = ec2_client.get_subnet_cidr_reservations(SubnetId=subnet_id)
+
+        reservation_ips = {}
+        for reservation in response.get('SubnetIpv4CidrReservations', []):
+            cidr = reservation['Cidr']
+            reservation_type = reservation['ReservationType']  # 'explicit' or 'prefix'
+            description = reservation.get('Description', '')
+            reservation_id = reservation['SubnetCidrReservationId']
+
+            logger.info(f"Found CIDR reservation: {cidr} ({reservation_type}) - {description}")
+
+            # Get all IPs in the reserved CIDR block
+            try:
+                reserved_network = ip_network(cidr)
+                for ip in reserved_network:
+                    reservation_ips[str(ip)] = {
+                        'cidr': cidr,
+                        'type': reservation_type,
+                        'description': description,
+                        'reservationId': reservation_id
+                    }
+            except Exception as e:
+                logger.error(f"Error processing reservation CIDR {cidr}: {str(e)}")
+
+        return reservation_ips
+    except Exception as e:
+        logger.error(f"Error fetching subnet CIDR reservations: {str(e)}")
+        return {}
+
+
 def get_all_eni_ips(enis):
     """
     Extract all IPs from ENIs including:
@@ -302,16 +338,31 @@ def get_subnets(vpc_id):
             used_ips = [ip_info['ip'] for ip_info in ip_details]
             reserved_ips = get_reserved_ips(cidr_block)
 
+            # Get CIDR reservations
+            cidr_reservation_ips = get_subnet_cidr_reservations(ec2_client, subnet_id)
+            cidr_reservations_list = list(cidr_reservation_ips.keys())
+
+            # Combine used IPs and CIDR reservations for fragmentation calculation
+            # CIDR reservations should be treated as unavailable space
+            all_unavailable_ips = used_ips + cidr_reservations_list
+
             # Calculate fragmentation
             logger.info(f"=== Calculating fragmentation for subnet: {name} ({subnet_id}) ===")
             frag_score, frag_details = calculate_fragmentation(
-                used_ips, total_ips, available_ips
+                all_unavailable_ips, total_ips, available_ips
             )
 
             # Count different IP types
             primary_count = sum(1 for ip in ip_details if ip['type'] == 'primary')
             secondary_count = sum(1 for ip in ip_details if ip['type'] == 'secondary')
             prefix_count = sum(1 for ip in ip_details if ip['type'] == 'prefix_delegation')
+
+            # Extract unique CIDR reservation blocks for summary
+            reservation_blocks = {}
+            for ip_addr, res_info in cidr_reservation_ips.items():
+                res_cidr = res_info['cidr']
+                if res_cidr not in reservation_blocks:
+                    reservation_blocks[res_cidr] = res_info
 
             subnets.append({
                 'id': subnet_id,
@@ -322,6 +373,8 @@ def get_subnets(vpc_id):
                 'availableIps': available_ips,
                 'usedIps': len(used_ips),
                 'reservedIps': len(reserved_ips),
+                'cidrReservationIps': len(cidr_reservations_list),
+                'cidrReservations': list(reservation_blocks.values()),
                 'primaryIps': primary_count,
                 'secondaryIps': secondary_count,
                 'prefixDelegationIps': prefix_count,
@@ -357,8 +410,11 @@ def get_subnet_ips(subnet_id):
         subnet_ip_details = get_all_eni_ips(enis_response['NetworkInterfaces'])
         ip_details_map = {ip_info['ip']: ip_info for ip_info in subnet_ip_details.get(subnet_id, [])}
 
-        # Get reserved IPs
+        # Get reserved IPs (AWS system reserved)
         reserved_ips = get_reserved_ips(cidr_block)
+
+        # Get CIDR reservations (explicit and prefix reservations)
+        cidr_reservation_ips = get_subnet_cidr_reservations(ec2_client, subnet_id)
 
         # Build complete IP map
         network = ip_network(cidr_block)
@@ -368,10 +424,18 @@ def get_subnet_ips(subnet_id):
             ip_str = str(ip)
             if ip_str in reserved_ips:
                 status = 'reserved'
-                details = {'reason': 'AWS Reserved', 'type': 'reserved'}
+                details = {'reason': 'AWS Reserved', 'type': 'aws_reserved'}
             elif ip_str in ip_details_map:
+                # IP is in use - show as used even if in a CIDR reservation
                 status = 'used'
                 details = ip_details_map[ip_str]
+                # Add reservation info if this IP is also part of a CIDR reservation
+                if ip_str in cidr_reservation_ips:
+                    details['cidrReservation'] = cidr_reservation_ips[ip_str]
+            elif ip_str in cidr_reservation_ips:
+                # IP is reserved but not currently in use
+                status = 'cidr_reservation'
+                details = cidr_reservation_ips[ip_str]
             else:
                 status = 'free'
                 details = None
@@ -386,6 +450,7 @@ def get_subnet_ips(subnet_id):
         used_count = sum(1 for ip in ip_map if ip['status'] == 'used')
         free_count = sum(1 for ip in ip_map if ip['status'] == 'free')
         reserved_count = sum(1 for ip in ip_map if ip['status'] == 'reserved')
+        cidr_reservation_count = sum(1 for ip in ip_map if ip['status'] == 'cidr_reservation')
 
         return jsonify({
             'subnetId': subnet_id,
@@ -394,6 +459,7 @@ def get_subnet_ips(subnet_id):
             'usedIps': used_count,
             'freeIps': free_count,
             'reservedIps': reserved_count,
+            'cidrReservationIps': cidr_reservation_count,
             'ips': ip_map
         })
     except Exception as e:

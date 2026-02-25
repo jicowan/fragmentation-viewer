@@ -150,6 +150,11 @@
   word-break: break-word;
 }
 
+.tooltip-divider {
+  border-top: 1px solid #374151;
+  margin: 0.5rem 0;
+}
+
 .status-badge {
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
@@ -170,6 +175,25 @@
 .status-badge.reserved {
   background-color: #1f2937;
   color: #cbd5e1;
+}
+
+.status-badge.cidr_reservation {
+  background-color: #78350f;
+  color: #fcd34d;
+}
+
+.ip-block.cidr_reservation:hover {
+  border-color: #f59e0b;
+}
+
+.ip-block.has-reservation {
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+}
+
+.ip-block.has-reservation:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
 }
 
 .mono {
