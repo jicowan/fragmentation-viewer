@@ -147,7 +147,6 @@ The application needs the following EC2 permissions:
 ```
 .
 ├── app.py                  # Flask backend
-├── lambda.py               # Original Lambda function (kept for reference)
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile              # Production container
 ├── Dockerfile.dev          # Development container
