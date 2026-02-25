@@ -137,6 +137,9 @@ The application needs the following EC2 permissions:
 }
 ```
 
+## Screenshot
+[](./img/fragmentation.png)
+
 ## Development
 
 ### Project Structure

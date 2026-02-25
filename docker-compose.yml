@@ -9,7 +9,6 @@ services:
       - "5000:5000"
     volumes:
       - ./app.py:/app/app.py
-      - ./lambda.py:/app/lambda.py
       - ~/.aws:/root/.aws:ro  # Mount AWS credentials (read-only)
     environment:
       - AWS_PROFILE=${AWS_PROFILE:-default}
