@@ -138,7 +138,7 @@ The application needs the following EC2 permissions:
 ```
 
 ## Screenshot
-[](./img/fragmentation.png)
+![](./img/fragmentation.png "Visualizer")
 
 ## Development
 
