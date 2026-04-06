@@ -74,6 +74,8 @@ A web application that visualizes IP address allocation and fragmentation in AWS
 - `GET /api/vpcs` - List all VPCs
 - `GET /api/vpc/<vpc_id>/subnets` - Get subnets for a VPC with statistics
 - `GET /api/subnet/<subnet_id>/ips` - Get detailed IP allocation map for a subnet
+- `GET /api/vpc/<vpc_id>/tags` - Discover tag keys across VPC resources
+- `GET /api/vpc/<vpc_id>/tag-groups?tag_key=` - Get IP utilization grouped by tag values
 
 ## EKS IP Tracking
 
@@ -129,13 +131,79 @@ The application needs the following EC2 permissions:
       "Action": [
         "ec2:DescribeVpcs",
         "ec2:DescribeSubnets",
-        "ec2:DescribeNetworkInterfaces"
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions",
+        "ec2:GetSubnetCidrReservations"
       ],
       "Resource": "*"
     }
   ]
 }
 ```
+
+### EKS Deployment with IRSA
+
+When deploying to EKS, use [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) to grant the pod AWS permissions without using node-level credentials.
+
+**1. Associate an OIDC provider with your cluster** (one-time setup):
+
+```bash
+eksctl utils associate-iam-oidc-provider \
+  --cluster <cluster-name> \
+  --region <region> \
+  --approve
+```
+
+**2. Create an IAM policy:**
+
+```bash
+aws iam create-policy \
+  --policy-name FragmentationViewerPolicy \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeInstances",
+          "ec2:DescribeRegions",
+          "ec2:GetSubnetCidrReservations"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }'
+```
+
+**3. Create a Kubernetes service account with the IAM role:**
+
+```bash
+eksctl create iamserviceaccount \
+  --name fragmentation-viewer-sa \
+  --namespace default \
+  --cluster <cluster-name> \
+  --region <region> \
+  --attach-policy-arn arn:aws:iam::<account-id>:policy/FragmentationViewerPolicy \
+  --approve
+```
+
+**4. Reference the service account in your deployment:**
+
+```yaml
+spec:
+  template:
+    spec:
+      serviceAccountName: fragmentation-viewer-sa
+      containers:
+        - name: fragmentation-viewer
+          image: <account-id>.dkr.ecr.<region>.amazonaws.com/vpc-ip-viewer:latest
+```
+
+Sample Kubernetes manifests are provided in the `k8s/` directory.
 
 ## Screenshot
 ![](./img/fragmentation.png "Visualizer")

@@ -6,6 +6,8 @@ import VpcSelector from './components/VpcSelector';
 import SubnetList from './components/SubnetList';
 import IpVisualization from './components/IpVisualization';
 import Statistics from './components/Statistics';
+import TagGroupSelector from './components/TagGroupSelector';
+import TagGroupList from './components/TagGroupList';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -19,6 +21,12 @@ function App() {
   const [ipData, setIpData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const [viewMode, setViewMode] = useState('subnets');
+  const [tagKeys, setTagKeys] = useState([]);
+  const [selectedTagKey, setSelectedTagKey] = useState(null);
+  const [tagGroups, setTagGroups] = useState(null);
+  const [subnetFilter, setSubnetFilter] = useState(null);
 
   // Fetch regions on mount
   useEffect(() => {
@@ -47,6 +55,12 @@ function App() {
       setSelectedSubnet(null);
       setIpData(null);
     }
+    // Reset tag state on VPC change
+    setViewMode('subnets');
+    setTagKeys([]);
+    setSelectedTagKey(null);
+    setTagGroups(null);
+    setSubnetFilter(null);
   }, [selectedVpc]);
 
   // Fetch IP data when subnet is selected
@@ -132,6 +146,60 @@ function App() {
     }
   };
 
+  const fetchTagKeys = async (vpcId) => {
+    if (!selectedRegion) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${API_URL}/api/vpc/${vpcId}/tags`, {
+        params: { region: selectedRegion.id }
+      });
+      setTagKeys(response.data);
+    } catch (err) {
+      setError('Failed to fetch tag keys: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTagGroups = async (vpcId, tagKey) => {
+    if (!selectedRegion) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${API_URL}/api/vpc/${vpcId}/tag-groups`, {
+        params: { region: selectedRegion.id, tag_key: tagKey }
+      });
+      setTagGroups(response.data);
+    } catch (err) {
+      setError('Failed to fetch tag groups: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    setSubnetFilter(null);
+    if (mode === 'tags' && selectedVpc && tagKeys.length === 0) {
+      fetchTagKeys(selectedVpc.id);
+    }
+  };
+
+  const handleTagKeySelect = (tagKey) => {
+    setSelectedTagKey(tagKey);
+    if (tagKey && selectedVpc) {
+      fetchTagGroups(selectedVpc.id, tagKey);
+    } else {
+      setTagGroups(null);
+    }
+  };
+
+  const handleGroupClick = (group) => {
+    setSubnetFilter(group.subnetIds);
+    setViewMode('subnets');
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -170,12 +238,54 @@ function App() {
         {selectedVpc && (
           <div className="main-content">
             <div className="left-panel">
-              <SubnetList
-                subnets={subnets}
-                selectedSubnet={selectedSubnet}
-                onSelect={setSelectedSubnet}
-                loading={loading}
-              />
+              <div className="view-tabs">
+                <button
+                  className={`view-tab ${viewMode === 'subnets' ? 'active' : ''}`}
+                  onClick={() => handleViewModeChange('subnets')}
+                >
+                  Subnets
+                </button>
+                <button
+                  className={`view-tab ${viewMode === 'tags' ? 'active' : ''}`}
+                  onClick={() => handleViewModeChange('tags')}
+                >
+                  Tag Groups
+                </button>
+              </div>
+
+              {subnetFilter && viewMode === 'subnets' && (
+                <div className="filter-banner">
+                  Filtered to {subnetFilter.length} subnet{subnetFilter.length !== 1 ? 's' : ''}
+                  <button onClick={() => setSubnetFilter(null)}>Clear filter</button>
+                </div>
+              )}
+
+              {viewMode === 'subnets' ? (
+                <SubnetList
+                  subnets={subnetFilter
+                    ? subnets.filter(s => subnetFilter.includes(s.id))
+                    : subnets
+                  }
+                  selectedSubnet={selectedSubnet}
+                  onSelect={setSelectedSubnet}
+                  loading={loading}
+                />
+              ) : (
+                <>
+                  <TagGroupSelector
+                    tagKeys={tagKeys}
+                    selectedTagKey={selectedTagKey}
+                    onSelect={handleTagKeySelect}
+                    loading={loading}
+                  />
+                  <TagGroupList
+                    tagGroups={tagGroups?.groups || []}
+                    vpcUsedIps={tagGroups?.vpcUsedIps || 0}
+                    onGroupClick={handleGroupClick}
+                    loading={loading}
+                  />
+                </>
+              )}
             </div>
 
             <div className="right-panel">
