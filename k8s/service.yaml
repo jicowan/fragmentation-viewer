@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fragmentation-viewer
+  namespace: default
+  labels:
+    app: fragmentation-viewer
+spec:
+  type: LoadBalancer
+  selector:
+    app: fragmentation-viewer
+  ports:
+    - port: 80
+      targetPort: 5000
+      protocol: TCP

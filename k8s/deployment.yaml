@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fragmentation-viewer
+  namespace: default
+  labels:
+    app: fragmentation-viewer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fragmentation-viewer
+  template:
+    metadata:
+      labels:
+        app: fragmentation-viewer
+    spec:
+      serviceAccountName: fragmentation-viewer-sa
+      containers:
+        - name: fragmentation-viewer
+          image: <account-id>.dkr.ecr.<region>.amazonaws.com/<repo>:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10

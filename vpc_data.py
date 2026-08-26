@@ -134,6 +134,70 @@ def get_all_eni_ips(enis):
     return subnet_ips
 
 
+def get_instance_tags(ec2_client, vpc_id):
+    """
+    Fetch all instances in a VPC and return a dict of {instance_id: {tag_key: tag_value}}.
+    Returns empty dict if DescribeInstances fails (e.g. insufficient permissions).
+    """
+    try:
+        paginator = ec2_client.get_paginator('describe_instances')
+        pages = paginator.paginate(
+            Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
+        )
+
+        instance_tags = {}
+        for page in pages:
+            for reservation in page['Reservations']:
+                for instance in reservation['Instances']:
+                    instance_id = instance['InstanceId']
+                    tags = {tag['Key']: tag['Value'] for tag in instance.get('Tags', [])}
+                    instance_tags[instance_id] = tags
+
+        logger.info(f"Fetched tags for {len(instance_tags)} instances in VPC {vpc_id}")
+        return instance_tags
+    except Exception as e:
+        logger.warning(f"Could not fetch instance tags (may lack ec2:DescribeInstances permission): {str(e)}")
+        return {}
+
+
+def resolve_tag_for_ip(tag_key, eni, instance_tags, subnet_tags, vpc_tags):
+    """
+    Resolve a tag value for a given IP's ENI using precedence:
+    ENI tags > Instance tags > Subnet tags > VPC tags.
+    Returns the tag value string, or None if not found at any level.
+
+    Args:
+        tag_key: The tag key to look up (e.g. 'team')
+        eni: The ENI dict from DescribeNetworkInterfaces
+        instance_tags: Dict of {instance_id: {tag_key: tag_value}}
+        subnet_tags: Dict of {subnet_id: {tag_key: tag_value}}
+        vpc_tags: Dict of {tag_key: tag_value} for the VPC
+    """
+    # Level 1: ENI tags
+    eni_tags = {tag['Key']: tag['Value'] for tag in eni.get('TagSet', [])}
+    if tag_key in eni_tags:
+        return eni_tags[tag_key]
+
+    # Level 2: Parent instance tags
+    attachment = eni.get('Attachment', {})
+    instance_id = attachment.get('InstanceId')
+    if instance_id and instance_id in instance_tags:
+        if tag_key in instance_tags[instance_id]:
+            return instance_tags[instance_id][tag_key]
+
+    # Level 3: Subnet tags
+    subnet_id = eni.get('SubnetId')
+    if subnet_id and subnet_id in subnet_tags:
+        if tag_key in subnet_tags[subnet_id]:
+            return subnet_tags[subnet_id][tag_key]
+
+    # Level 4: VPC tags
+    if tag_key in vpc_tags:
+        return vpc_tags[tag_key]
+
+    return None
+
+
 def calculate_fragmentation(used_ips, total_ips, available_count):
     """
     Calculate fragmentation metrics for a subnet optimized for /28 prefix allocation.

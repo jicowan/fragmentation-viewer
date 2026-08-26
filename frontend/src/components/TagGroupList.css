@@ -1,0 +1,72 @@
+.tag-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tag-group-list h3 {
+  color: #e2e8f0;
+  margin-bottom: 0.5rem;
+}
+
+.tag-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tag-group-item {
+  padding: 1rem;
+  border: 2px solid #334155;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tag-group-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.tag-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.tag-group-header h4 {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 1rem;
+}
+
+.tag-group-subnet-count {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  background-color: #1f2937;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.tag-group-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.tag-group-ip-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tag-group-list-loading,
+.tag-group-list-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #94a3b8;
+}

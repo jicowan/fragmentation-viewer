@@ -190,6 +190,65 @@
   background-color: #374151;
 }
 
+.view-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #334155;
+}
+
+.view-tab {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.view-tab:hover {
+  color: #e2e8f0;
+}
+
+.view-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+.filter-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background-color: #1e3a5f;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: #93c5fd;
+}
+
+.filter-banner button {
+  background: none;
+  border: 1px solid #93c5fd;
+  color: #93c5fd;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.filter-banner button:hover {
+  background-color: #2563eb;
+  color: white;
+}
+
 @media (max-width: 1024px) {
   .main-content {
     grid-template-columns: 1fr;
