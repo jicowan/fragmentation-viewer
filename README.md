@@ -12,9 +12,34 @@ A web application that visualizes IP address allocation and fragmentation in AWS
 
 ## Architecture
 
-- **Backend**: Flask API that queries AWS EC2 APIs for VPC, subnet, and ENI information
-- **Frontend**: React application with visual IP allocation grid
+- **Shared core**: `vpc_data.py` holds the boto3 EC2 queries and fragmentation math, reused by both front ends
+- **Backend**: Flask API (`app.py`) that exposes the shared core over `/api/*`
+- **Web frontend**: React application with visual IP allocation grid
+- **Terminal UI**: `tui.py`, a keyboard-driven [Textual](https://textual.textualize.io/) app that renders the same disk-defrag view in your terminal
 - **Deployment**: Containerized with Docker, ready for ECS/EKS deployment
+
+## Terminal UI (TUI)
+
+Prefer the terminal? Run the TUI instead of the web stack — it uses your AWS
+credentials directly, no server required.
+
+```bash
+./setup.sh && source venv/bin/activate   # or: pip install -r requirements.txt
+python tui.py                            # or: textual run tui.py
+```
+
+- Pick a **region** and **VPC** from the dropdowns at the top.
+- Select a **subnet** from the table (↑/↓, `Enter`) to load its IP map.
+- Move the cursor over the **IP grid** with the arrow keys or `h`/`j`/`k`/`l`
+  (`Home`/`End` jump to the first/last IP). The panel below shows details for
+  the highlighted IP — the TUI equivalent of the web hover tooltip. The grid
+  reflows to fill the map panel's width, so widening your terminal shows more
+  IPs per row.
+- Press `r` to refresh the current view, `q` to quit.
+
+Colors match the web legend: primary (blue), secondary (cyan), prefix
+delegation (purple), CIDR reservation (amber/orange), AWS reserved (gray), and
+free (dim gray).
 
 ## Prerequisites
 
