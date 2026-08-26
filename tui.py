@@ -386,6 +386,7 @@ class VpcFragTUI(App):
         table = self.query_one("#subnet-table", DataTable)
         table.clear()
         self._subnets_by_id = {}
+        self._selected_subnet = None
         try:
             subnets = await asyncio.to_thread(vpc_data.get_vpc_subnets, vpc_id, region)
         except Exception as e:
@@ -404,7 +405,16 @@ class VpcFragTUI(App):
                 f"{s['fragmentationScore']:.0f} {label}",
                 key=s["id"],
             )
-        self.set_status(f"{len(subnets)} subnet(s). Select one to view its IP map.")
+        if subnets:
+            # Focus the table so the arrow keys drive it right away, and load the
+            # first subnet. RowHighlighted (below) loads whichever row is current.
+            table.focus()
+            table.move_cursor(row=0)
+            self.set_status(
+                f"{len(subnets)} subnet(s). ↑/↓ to browse, Enter to inspect IPs."
+            )
+        else:
+            self.set_status("No subnets found in this VPC.")
 
     @work(exclusive=True)
     async def load_ip_map(self, region, subnet_id):
@@ -515,15 +525,29 @@ class VpcFragTUI(App):
         self.query_one("#ip-grid", IpGrid).set_ips([])
         self.load_subnets(region, event.value)
 
-    @on(DataTable.RowSelected, "#subnet-table")
-    def _subnet_selected(self, event):
-        subnet_id = event.row_key.value
-        if not subnet_id:
+    @on(DataTable.RowHighlighted, "#subnet-table")
+    def _subnet_highlighted(self, event):
+        # Fires as the cursor moves with the arrow keys (or on click); load the
+        # highlighted subnet's IP map live without stealing focus from the table.
+        subnet_id = event.row_key.value if event.row_key else None
+        if not subnet_id or subnet_id == self._selected_subnet:
             return
         self._selected_subnet = subnet_id
         region = self.query_one("#region-select", Select).value
-        self.query_one("#ip-grid", IpGrid).focus()
         self.load_ip_map(region, subnet_id)
+
+    @on(DataTable.RowSelected, "#subnet-table")
+    def _subnet_selected(self, event):
+        # Enter (or click) on a row jumps into the IP grid to inspect individual
+        # IPs; Tab / Shift+Tab moves focus back to the table.
+        subnet_id = event.row_key.value if event.row_key else None
+        if not subnet_id:
+            return
+        region = self.query_one("#region-select", Select).value
+        if subnet_id != self._selected_subnet:
+            self._selected_subnet = subnet_id
+            self.load_ip_map(region, subnet_id)
+        self.query_one("#ip-grid", IpGrid).focus()
 
     @on(IpGrid.Selected)
     def _ip_hovered(self, event):
